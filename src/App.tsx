@@ -22,10 +22,14 @@ function App() {
       const image = new Image()
 
       image.onload = () => {
-        if (canvasRef.current) {
+        if (canvasRef.current && context.current) {
           canvasRef.current.width = image.width
           canvasRef.current.height = image.height
-          context.current?.drawImage(image, 0, 0)
+          context.current.drawImage(image, 0, 0)
+
+          // Get grayscale values and draw ASCII
+          const grayscales = convertToGrayscale(context.current, image.width, image.height)
+          drawAscii(grayscales)
         }
       }
 
@@ -35,6 +39,58 @@ function App() {
     reader.readAsDataURL(file)
   }
 
+  // Grayscale function
+  const toGrayscale = (r: number, g: number, b: number) => {
+    return 0.21 * r + 0.71 * g + 0.07 * b
+  }
+
+  const convertToGrayscale = (context: CanvasRenderingContext2D | null, width: number, height: number) => {
+    const imageData = context.getImageData(0, 0, width, height)
+
+    const grayscales = []
+
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      const r = imageData.data[i]
+      const g = imageData.data[i + 1]
+      const b = imageData.data[i + 2]
+
+      const grayscale = toGrayscale(r, g, b)
+      imageData.data[i] = imageData.data[i+1] = imageData.data[i+2] = grayscale
+
+      grayscales.push(grayscale)
+    }
+
+    context.putImageData(imageData, 0, 0)
+
+    return grayscales
+  }
+
+  // ASCII Symbols
+  const density = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+  const densityLength = density.length
+  
+  const getCharForGrayscale = (grayScale: number) => {
+    return density[Math.ceil(((densityLength  - 1) * grayScale) / 255)]
+  }
+
+  const asciiImage = useRef<HTMLPreElement>(null)
+  
+
+  const drawAscii = (grayscales: number[], width: number) => {
+    const ascii = grayscales.reduce((asciiImage, grayscale, index) => {
+      let nextChar = getCharForGrayscale(grayscale)
+
+      if ((index + 1) % width === 0) {
+        nextChar = '\n'
+      }
+
+      return asciiImage + nextChar;
+    }, '')
+
+    if (asciiImage.current) {
+      asciiImage.current.textContent = ascii
+    }
+  }
 
   return (
     <>
@@ -42,7 +98,8 @@ function App() {
         <input type="file" name='image' ref={fileInput} onChange={handleImageChange} />
         <button onClick={() => fileInput.current?.click()}>Submit</button>
       </div>
-      <canvas ref={canvasRef} id='preview' />
+      <canvas ref={canvasRef} id='preview' style={{ display: 'none' }} />
+      <pre ref={asciiImage} id='ascii-image' style={{ color: 'white' }} />
     </>
   )
 }
