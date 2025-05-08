@@ -23,13 +23,15 @@ function App() {
 
       image.onload = () => {
         if (canvasRef.current && context.current) {
-          canvasRef.current.width = image.width
-          canvasRef.current.height = image.height
-          context.current.drawImage(image, 0, 0)
+          const [width, height] = clampDimension(canvasRef.current.width, canvasRef.current.height)
 
-          // Get grayscale values and draw ASCII
-          const grayscales = convertToGrayscale(context.current, image.width, image.height)
-          drawAscii(grayscales)
+          canvasRef.current.width = width,
+          canvasRef.current.height = height,
+
+          context.current.drawImage(image, 0, 0, width, height)
+          const grayScales = convertToGrayscale(context.current, width, height)
+
+          drawAscii(grayScales, width)
         }
       }
 
@@ -78,18 +80,35 @@ function App() {
 
   const drawAscii = (grayscales: number[], width: number) => {
     const ascii = grayscales.reduce((asciiImage, grayscale, index) => {
-      let nextChar = getCharForGrayscale(grayscale)
+      let nextChars = getCharForGrayscale(grayscale)
 
       if ((index + 1) % width === 0) {
-        nextChar = '\n'
+        nextChars = '\n'
       }
 
-      return asciiImage + nextChar;
+      return asciiImage + nextChars;
     }, '')
 
-    if (asciiImage.current) {
-      asciiImage.current.textContent = ascii
+
+    asciiImage.current.textContent = ascii
+
+  }
+
+  const MAX_WIDTH = 100
+  const MAX_HEIGHT = 70
+
+  const clampDimension = (width: number, height: numbeer) => {
+    if (height > MAX_HEIGHT) {
+      const reducedWidth = Math.floor((width * MAX_HEIGHT) / height)
+      return [reducedWidth, MAX_HEIGHT]
     }
+
+    if (width > MAX_WIDTH) {
+      const reducedHeight = Math.floor((height * MAX_WIDTH) / width);
+      return [MAX_WIDTH, reducedHeight]
+    }
+
+    return [width, height]
   }
 
   return (
